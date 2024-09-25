@@ -2,6 +2,7 @@ using Microsoft.Data.SqlClient;
 using System.Data;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
+using System.IO;
 
 namespace UnsecureApp.Controllers
 {
@@ -10,7 +11,20 @@ namespace UnsecureApp.Controllers
 
         public string ReadFile(string userInput)
         {
-            using (FileStream fs = File.Open(userInput, FileMode.Open))
+            if (IsPathTraversal(userInput))
+            {
+                throw new ArgumentException("Invalid file path.");
+            }
+
+            string basePath = "/safe/directory"; // Change this to your safe directory
+            string fullPath = Path.GetFullPath(Path.Combine(basePath, userInput));
+
+            if (!fullPath.StartsWith(basePath))
+            {
+                throw new ArgumentException("Invalid file path.");
+            }
+
+            using (FileStream fs = File.Open(fullPath, FileMode.Open))
             {
                 byte[] b = new byte[1024];
                 UTF8Encoding temp = new UTF8Encoding(true);
@@ -76,5 +90,10 @@ namespace UnsecureApp.Controllers
         }
 
         private string connectionString = "";
+
+        private bool IsPathTraversal(string path)
+        {
+            return path.Contains("..") || path.Contains("/") || path.Contains("\\");
+        }
     }
 }
